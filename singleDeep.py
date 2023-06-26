@@ -1,5 +1,3 @@
-#!/home/genyo/anaconda3/bin/python3.8
-
 # Parameters
 import argparse
 

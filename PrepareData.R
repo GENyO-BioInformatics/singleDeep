@@ -13,27 +13,27 @@ package.check <- lapply(
 # Parameters definiton
 option_list <- list(
     make_option(c("--inputPath"), type="character", default = NULL,
-        help="Path of the input object. Seurat object in rds file or scanpy 
+        help="Path of the input object. Seurat object in rds file or scanpy
         object in h5ad file"),
     make_option(c("--fileType"), type="character", default="seurat",
         help="File type (seurat or scanpy)"),
     make_option(c("--slotSeurat"), type="character", default= NULL,
-        help="Only when fileType == seurat. Slot of the Seurat object 
+        help="Only when fileType == seurat. Slot of the Seurat object
         to retrieve expression (data, scale.data, counts)"),
     make_option(c("--sampleColumn"), type="character", default= NULL,
         help="Metadata column with samples labels."),
-    make_option(c("--clinicalColumns"), type="character", 
+    make_option(c("--clinicalColumns"), type="character",
         default= NULL,
-        help="Specify the columns with clinical information. 
-        If there are more than one columns, 
+        help="Specify the columns with clinical information.
+        If there are more than one columns,
         separate the names by ','. Example: col1,col2"),
     make_option(c("--clusterColumn"), type="character", default= NULL,
         help="Specify the columns with cluster information"),
     make_option(c("--minCells"), type="numeric", default= 0,
-        help="Minimum number of cells that must contain 
+        help="Minimum number of cells that must contain
         each sample in each cluster"),
     make_option(c("--maxCells"), type="numeric", default= 50000,
-        help="Maximum number of cells per cluster. If the number of 
+        help="Maximum number of cells per cluster. If the number of
         cells is higher than this, random cells are removed"),
     make_option(c("--outPath"), type="character", default= "outData",
         help="Output path")
@@ -83,7 +83,7 @@ if(opt$fileType == "scanpy" & is.null(opt$clusterColumn)){
 
 inputPath <- opt$inputPath
 fileType <- opt$fileType
-slotSeurat <- opt$slotSeurat 
+slotSeurat <- opt$slotSeurat
 sampleColumn <- opt$sampleColumn
 clinicalColumns <- unlist(strsplit(opt$clinicalColumns, ","))
 clusterColumn <- opt$clusterColumn
@@ -97,7 +97,7 @@ outPath <- opt$outPath
 if (fileType == "seurat") {
     seuratobj <- readRDS(inputPath)
     exprMatrix <- GetAssayData(seuratobj, slot = slotSeurat)
-    metadataCells <- seuratobj[[]] 
+    metadataCells <- seuratobj[[]]
 } else {
     sc = import("scanpy")
     adata = sc$read_h5ad(inputPath)
@@ -120,7 +120,7 @@ if (length(clinicalColumns) > 1) {
     metadataSamples$Sample <- samples
     colnames(metadataSamples) <- c(clinicalColumns, "Sample")
 } else {
-    x <- lapply(samples, function(x) {return(metadataCells[metadataCells[,sampleColumn] == x, clinicalColumns][1])})
+    x <- lapply(samples, function(x) {return(as.character(metadataCells[metadataCells[,sampleColumn] == x, clinicalColumns][1]))})
     metadataSamples <- data.frame(do.call("rbind", x))
     rownames(metadataSamples) <- samples
     metadataSamples$Sample <- samples
@@ -158,7 +158,7 @@ for (cluster in clustersOK) {
         exprCluster <- exprMatrix[cellsCluster,]
         exprCluster <- t(exprCluster)
     }
-    
+
     write.table(exprCluster, paste0(outPath, "/", cluster, ".tsv"), sep="\t", quote = F)
     write.table(metaCluster, paste0(outPath, "/", "Metadata_", cluster, ".tsv"), sep="\t", quote = F)
 }

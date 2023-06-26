@@ -1,5 +1,3 @@
-#!/home/genyo/anaconda3/bin/python3.8
-
 # Parameters
 import argparse
 
@@ -23,13 +21,6 @@ sampleColumn = args.sampleColumn
 scale = args.scale
 outFile = args.outFile
 
-inPath = "SLE_data/pediatric_scaled_projected/"
-modelFile = "results_SLEScience3/Status_models.pt"
-sampleColumn="ind_cov"
-varColumn = "Status"
-outFile = "results_SLEScience3/validation_predictions.tsv"
-scale = False
-
 # Import functions from functions.py
 from functions import NeuralNetwork, \
 _get_mean_var, \
@@ -40,14 +31,6 @@ import glob
 import pandas as pd
 import torch
 import itertools
-
-
-
-# os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-# torch.manual_seed(0)
-
-
-
 
 
 test_Results = {}
@@ -68,23 +51,10 @@ clusters.sort()
 
 metadataSamples = pd.read_table(inPath + '/Phenodata.tsv')
 
-# Remove from here
-# Assign categorical labels to numbers
-labels = list(set(metadataSamples[varColumn]))
-labelsDict = {}
-x = 1
-
-for label in labels:
-	labelsDict[label] = x
-	x -= 1
-
-metadataSamples["LabelInt"] = metadataSamples[varColumn].map(labelsDict)
-
-# Assign categorical labels to numbers
-# genes = pd.read_table(inPath + "/genes.txt")['x'].tolist()
 
 # Load training parameters
-training_dict = torch.load(modelFile)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+training_dict = torch.load(modelFile, map_location=device)
 
 
 for cluster in clusters:
