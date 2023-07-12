@@ -155,7 +155,7 @@ for (cluster in clustersOK) {
         exprCluster <- exprMatrix[,cellsCluster]
         }
     else{
-        exprCluster <- exprMatrix[cellsCluster,]
+        exprCluster <- as.matrix(exprMatrix[cellsCluster,])
         exprCluster <- t(exprCluster)
     }
 
