@@ -110,3 +110,4 @@ for sample in metadataSamples["Sample"]:
 results_pd = pd.DataFrame.from_dict(labelsPredicted, orient = "index")
 results_pd.columns = ['label_predicted']
 results_pd.to_csv(outFile, sep="\t")
+

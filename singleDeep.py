@@ -10,6 +10,8 @@ parser.add_argument('--resultsPath', type=str, help='Folder to save the generate
 parser.add_argument('--resultsFilenames', type=str, default='singleDeep_results', help='Name of the output files')
 parser.add_argument('--logPath', type=str, default='./log', help='Folder to save the generated reports')
 parser.add_argument('--varColumn', type=str, default='Condition', help='Column in Phenotype.tsv that contains the analyzed variable')
+parser.add_argument('--referenceClass', type=int, default=0, help='Mean gene expression of this class is used as reference for the gene contributions calculation (default = 0, i.e. the first alphabetically ordered category)')
+parser.add_argument('--targetClass', type=int, default=1, help='Gene contributions are calculated related to this class (default = 1, i.e. the second alphabetically ordered category)')
 parser.add_argument('--sampleColumn', type=str, default='Sample', help='Column in the metadata of clusters with the sample name')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate')
 parser.add_argument('--KOuter', type=int, default=5, help='Folds for the outer cross-validation')
@@ -30,6 +32,8 @@ resultsPath = args.resultsPath
 resultsFilenames = args.resultsFilenames
 logPath = args.logPath
 varColumn = args.varColumn
+referenceClass = args.referenceClass
+targetClass = args.targetClass
 sampleColumn = args.sampleColumn
 lr = args.lr
 KOuter = args.KOuter
@@ -45,6 +49,8 @@ saveModel = args.saveModel
 # # inPath = "Synthetic_data/cdeprob005/"
 # inPath = "SLE_data/pediatric_dataset/"
 # varColumn = "Condition" # Column in Phenotype.tsv that contains the analyzed variable
+# referenceClass = 0 # Column in Phenotype.tsv that contains the analyzed variable
+# targetClass = 1 # Column in Phenotype.tsv that contains the analyzed variable
 # # varColumn = "SLEDAI_Group" # Column in Phenotype.tsv that contains the analyzed variable
 # # sampleColumn = "Sample" # Column in the metadata of clusters with the sample name
 # sampleColumn = "orig.ident" # Column in the metadata of clusters with the sample name
@@ -62,7 +68,7 @@ saveModel = args.saveModel
 # num_epochs = 250
 # min_epochs = 30
 # eps = 0.00001
-# saveModel=True
+# saveModel=False
 
 
 # Import functions from functions.py
@@ -144,7 +150,7 @@ for cluster in clusters:
     metadata["LabelInt"] = metadata[varColumn].map(labelsDict)
     
     # Get the results for all folds of the cluster
-    resultsCluster = singleDeep_core(inPath, varColumn, labelsDict, 
+    resultsCluster = singleDeep_core(inPath, varColumn, referenceClass, targetClass, labelsDict, 
                                 sampleColumn, expression, metadata, metadataSamples,
                                 lr, num_epochs, min_epochs, eps,
                                 logPath, KOuter, KInner, batchProp, 
@@ -176,13 +182,7 @@ for cluster in clusters:
         savedModels[cluster] = resultsCluster[4]
         savedModels[cluster]["MCC"] = validationMCCs[cluster]
 
-    # # Save the mean validation MCCs for the inner plots
-    # meanMCC = 0.0
-    # for foldOut in range(1, KOuter+1):
-    #     for foldIn in range(1, KInner+1):
-    #         meanMCC += foldsMCCs[foldOut][foldIn]
-    # meanMCC /= (KOuter*KInner)
-    # validationMCCs[cluster] = meanMCC
+
 
 
 # Predict samples labels based on the pondered cells predictions
@@ -211,13 +211,6 @@ test_Results = {'accuracy': metr.accuracy_score(x, y),
                'recall': metr.recall_score(x, y, average='macro'),
                'f1': metr.f1_score(x, y, average='macro'),
                'MCC': matthews_corrcoef(x, y)}
-
-# wrongsamples = ['GSM4029909', 'GSM4029932', 'GSM4029935', 'GSM4029901']
-# 
-# for sample in wrongsamples:
-#     print(sample)
-#     for cluster in clusters:
-#         print(cluster + ": " + str(testPredictions[cluster][sample]))
 
 
 ######################
@@ -256,17 +249,3 @@ cluster_Results_Means_pd.to_csv(resultsPath + resultsFilenames + "_clusterResult
 # Save models
 if saveModel:
     torch.save(savedModels, resultsPath + resultsFilenames + "_models.pt")
-
-
-# contributionsMeans = {}
-# for cluster in clusters:
-#     contributionsCluster = []
-#     for fold in range(1, folds+1):
-#         contributionsCluster.append(foldContributions[cluster][fold])
-#     contributionsMeans[cluster] = [statistics.mean(group) for group in zip(*contributionsCluster)]
-#     
-# contributions_pd = pd.DataFrame(contributionsMeans)
-# contributions_pd.index = genes
-# contributions_pd['Mean'] = contributions_pd.mean(axis=1)
-# contributions_pd = contributions_pd.sort_values('Mean', ascending=False)
-# contributions_pd.to_csv(resultsPath + resultsFilenames + "_geneContributions.tsv", sep="\t")

@@ -338,7 +338,7 @@ def scale_transform(
 # testContributions, the gene contributions for each outer and inner fold,
 # results_Cluster, the phenotype prediction performance for each outer fold
 
-def singleDeep_core(inPath, varColumn, labelsDict, sampleColumn, 
+def singleDeep_core(inPath, varColumn, referenceClass, targetClass, labelsDict, sampleColumn, 
                     expression, metadata, metadataSamples, lr,
                     num_epochs, min_epochs, eps, logPath, 
                     KOuter, KInner, batchProp,
@@ -477,18 +477,6 @@ def singleDeep_core(inPath, varColumn, labelsDict, sampleColumn,
                         min_epochs=min_epochs, eps=eps, logPath=logPath, batchSize=batchSize, 
                         cluster=cluster, foldOut=foldOut, foldIn = foldIn, nGenes=nGenes, device=device)
             
-            # # Deeplift contribution scores for validation cells
-            # trained_net.eval()
-            # baseline = torch.zeros(len(validation_dataset), nGenes, requires_grad=True).to(device)
-            # dl = DeepLift(trained_net)
-            # with warnings.catch_warnings():
-            #     warnings.filterwarnings("ignore")
-            #     contributions = dl.attribute(torch.from_numpy(expr_validation).float().to(device), baseline,
-            #                                         target=exprLabels_validation.tolist())
-            # 
-            # # One contribution per gene and cell. Calculate mean across cells
-            # contributions_means = contributions.mean(dim=0).to("cpu").tolist()
-            # CVContributions[foldIn] = contributions_means
             
             # Predict the labels of the validation samples
             for sample in validationSamples:
@@ -570,14 +558,21 @@ def singleDeep_core(inPath, varColumn, labelsDict, sampleColumn,
         
         minLossEpochs.append(resultsTest[2])
         # Predict the labels of the test cells
+        # Define the baseline as the mean expression in reference xlass        
+        # baseline = torch.zeros(len(test_dataset), nGenes, requires_grad=True).to(device)
         
-        # trained_net.eval()
-        baseline = torch.zeros(len(test_dataset), nGenes, requires_grad=True).to(device)
+        metadataTestReference =  metadataTest[metadataTest["LabelInt"] == referenceClass]
+        cellsTestReference = list(metadataTestReference.index.values)
+        expr_testReference = expression[cellsTestReference]
+        expr_testReference = np.array(expr_testReference).transpose()
+        expr_testReference = np.mean(expr_testReference, axis=0)
+        baseline = torch.from_numpy(np.tile(expr_testReference, (len(test_dataset), 1))).float().to(device)
+        
         dl = DeepLift(trained_net)
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore")
             contributions = dl.attribute(torch.from_numpy(expr_test).float().to(device), baseline,
-                                                target=exprLabels_test.tolist())
+                                                target=targetClass)
         # contributions_means = contributions.mean(dim=0).to("cpu").tolist()
         
         # Make predictions for test cells and get mean gene contributions per sample
@@ -622,6 +617,7 @@ def singleDeep_core(inPath, varColumn, labelsDict, sampleColumn,
     # Train and save the model with all data if requested
     outModel = {}
     if saveModel:
+        print("Saving model")
         exprLabels = np.array(metadata['LabelInt'])
         expression = np.array(expression).transpose()
         # Scaling
@@ -725,3 +721,4 @@ def singleDeep_predict(inPath, sampleColumn,
         torch.cuda.empty_cache()
 
     return(testPredictions)
+
