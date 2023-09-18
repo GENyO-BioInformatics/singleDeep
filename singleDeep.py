@@ -1,16 +1,15 @@
-# Parameters
+##################
+### Parameters ###
+##################
 import argparse
 
-# Create an ArgumentParser object
 parser = argparse.ArgumentParser(description='singleDeep: prediction of samples phenotypes from scRNA-Seq data')
 
-# Add parameters to the parser
 parser.add_argument('--inPath', type=str, help='Folder with the input data (output of PrepareData.R script)')
 parser.add_argument('--resultsPath', type=str, help='Folder to save the generated reports')
 parser.add_argument('--resultsFilenames', type=str, default='singleDeep_results', help='Name of the output files')
 parser.add_argument('--logPath', type=str, default='./log', help='Folder to save the generated reports')
 parser.add_argument('--varColumn', type=str, default='Condition', help='Column in Phenotype.tsv that contains the analyzed variable')
-parser.add_argument('--referenceClass', type=int, default=0, help='Mean gene expression of this class is used as reference for the gene contributions calculation (default = 0, i.e. the first alphabetically ordered category)')
 parser.add_argument('--targetClass', type=int, default=1, help='Gene contributions are calculated related to this class (default = 1, i.e. the second alphabetically ordered category)')
 parser.add_argument('--sampleColumn', type=str, default='Sample', help='Column in the metadata of clusters with the sample name')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate')
@@ -20,19 +19,16 @@ parser.add_argument('--batchProp', type=float, default=0.1, help='Proportion of 
 parser.add_argument('--num_epochs', type=int, default=250, help='Maximum number of epochs')
 parser.add_argument('--min_epochs', type=int, default=30, help='Minimum number of epochs before early stopping')
 parser.add_argument('--eps', type=float, default=0.00001, help='Minimum difference between windows for early stopping')
-parser.add_argument('--scale', type=bool, default=True, help='Scale the data. Set to False if data is already scaled')
-parser.add_argument('--saveModel', type=bool, default=False, help='Save the model to be used for external data prediction')
+parser.add_argument('--scale', action='store_true', help='Scale the data')
+parser.add_argument('--saveModel', action='store_true', help='Save the model to be used for external data prediction')
 
-# Parse the arguments
 args = parser.parse_args()
 
-# Access the parameter values
 inPath = args.inPath
 resultsPath = args.resultsPath
 resultsFilenames = args.resultsFilenames
 logPath = args.logPath
 varColumn = args.varColumn
-referenceClass = args.referenceClass
 targetClass = args.targetClass
 sampleColumn = args.sampleColumn
 lr = args.lr
@@ -45,31 +41,10 @@ eps = args.eps
 scale = args.scale
 saveModel = args.saveModel
 
-# # fileName = "cdeprob005"
-# # inPath = "Synthetic_data/cdeprob005/"
-# inPath = "SLE_data/pediatric_dataset/"
-# varColumn = "Condition" # Column in Phenotype.tsv that contains the analyzed variable
-# referenceClass = 0 # Column in Phenotype.tsv that contains the analyzed variable
-# targetClass = 1 # Column in Phenotype.tsv that contains the analyzed variable
-# # varColumn = "SLEDAI_Group" # Column in Phenotype.tsv that contains the analyzed variable
-# # sampleColumn = "Sample" # Column in the metadata of clusters with the sample name
-# sampleColumn = "orig.ident" # Column in the metadata of clusters with the sample name
-# # logPath = "log/" # Path to save the reports
-# logPath = "log_SLE/pruebaScaling/" # Path to save the report
-# # resultsPath = "results_SD/" # Folder to save the results
-# resultsPath = "results_SLE/"
-# # resultsFilenames = "cdeprob005"
-# resultsFilenames = "condition"
-# # resultsFilenames = "SLEDAI"
-# lr = 0.01 # learning rate
-# KOuter = 5
-# KInner = 4
-# batchProp = 0.1
-# num_epochs = 250
-# min_epochs = 30
-# eps = 0.00001
-# saveModel=False
 
+####################
+### Dependencies ###
+####################
 
 # Import functions from functions.py
 from functions import train_loop, test_loop, net_train, net_train_whole, NeuralNetwork, \
@@ -89,6 +64,10 @@ import glob
 import itertools
 import statistics
 
+
+#########################
+### Environment setup ###
+#########################
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 torch.manual_seed(0)
 
@@ -109,6 +88,7 @@ geneContributionsPath = resultsPath + "/gene_contributions/"
 if not os.path.exists(geneContributionsPath):
     os.mkdir(geneContributionsPath)
 
+# Prepare variables to store the results
 test_Results = {}
 cluster_Results = {}
 testPredictions = {}
@@ -127,9 +107,11 @@ for file in filesMeta:
 	clusters.append(cluster)
 
 clusters.sort()
+
+# Prepare metadata
 metadataSamples = pd.read_table(inPath + '/Phenodata.tsv')
 
-# Assign categorical labels to numbers
+## Assign categorical labels to numbers
 labels = sorted(list(set(metadataSamples[varColumn])))
 labelsDict = {}
 x = 0
@@ -139,7 +121,13 @@ for label in labels:
 	x += 1
 
 metadataSamples["LabelInt"] = metadataSamples[varColumn].map(labelsDict)
+
 genes = pd.read_table(inPath + "/genes.txt")['x'].tolist()
+
+
+#############################
+### Train neural networks ###
+#############################
 
 for cluster in clusters:
     print("Analyzing cluster " + cluster)
@@ -150,18 +138,19 @@ for cluster in clusters:
     metadata["LabelInt"] = metadata[varColumn].map(labelsDict)
     
     # Get the results for all folds of the cluster
-    resultsCluster = singleDeep_core(inPath, varColumn, referenceClass, targetClass, labelsDict, 
+    resultsCluster = singleDeep_core(inPath, varColumn, targetClass, labelsDict, 
                                 sampleColumn, expression, metadata, metadataSamples,
                                 lr, num_epochs, min_epochs, eps,
                                 logPath, KOuter, KInner, batchProp, 
                                 labels, genes, cluster, scale, saveModel)
-
+    
+    # Store the results
     testPredictions[cluster] = resultsCluster[0]
     validationPredictions = resultsCluster[1]
     testContributions[cluster] = resultsCluster[2]
     cluster_Results[cluster] = resultsCluster[3]
     
-    # Store MCC of phenotype prediction for CV
+    # Store MCC of phenotype prediction for inner CV
     validationSamplesPredictions = {}
     for sample in metadataSamples["Sample"]:
         predictionsSample = []
@@ -178,12 +167,15 @@ for cluster in clusters:
     y = list(validationSamplesPredictions.values())
     validationMCCs[cluster] = matthews_corrcoef(x, y)
     
+    # Save the general model
     if saveModel:
         savedModels[cluster] = resultsCluster[4]
         savedModels[cluster]["MCC"] = validationMCCs[cluster]
 
 
-
+##############################################
+### Predict labels of test data (outer CV) ###
+##############################################
 
 # Predict samples labels based on the pondered cells predictions
 labelsPredicted = {}
@@ -203,6 +195,7 @@ for sample in metadataSamples["Sample"]:
         sys.exit("ERROR: Prediction not performed due to none of the models has an MCC > 0")
     
 
+# Evaluate the predictions
 labelsReal = metadataSamples["LabelInt"].loc[list(labelsPredicted.keys())]
 x = list(labelsReal)
 y = list(labelsPredicted.values())
@@ -216,10 +209,10 @@ test_Results = {'accuracy': metr.accuracy_score(x, y),
 ######################
 ### Export results ###
 ######################
+
+# Write performance table
 results_pd = pd.DataFrame.from_dict(test_Results, orient = "index")
 results_pd.to_csv(resultsPath + resultsFilenames + "_testResults.tsv", sep="\t")
-
-
 
 # Save gene contributions for each cluster
 for cluster in clusters:
@@ -227,11 +220,12 @@ for cluster in clusters:
     contributions_pd.index = genes
     contributions_pd.to_csv(geneContributionsPath + "geneContributions_cluster_" + cluster + ".tsv", sep="\t")
 
-# Save phenotype prediction performance for each cluster
+# Save label prediction performance for each cluster and outer CV fold
 for cluster in clusters:
     cluster_Results_pd = pd.DataFrame.from_dict(cluster_Results[cluster], orient="index")
     cluster_Results_pd.to_csv(foldsPerformancePath + "cluster_" + cluster + ".tsv", sep="\t")
 
+# Write a table with the mean performance for each cluster across all folds
 cluster_Results_Means = {}
 for cluster in clusters:
     cluster_Results_Means[cluster] = {}
@@ -245,7 +239,7 @@ for cluster in clusters:
 cluster_Results_Means_pd = pd.DataFrame.from_dict(cluster_Results_Means, orient = "index")
 cluster_Results_Means_pd.to_csv(resultsPath + resultsFilenames + "_clusterResults.tsv", sep="\t")
 
-
 # Save models
 if saveModel:
     torch.save(savedModels, resultsPath + resultsFilenames + "_models.pt")
+

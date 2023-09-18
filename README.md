@@ -51,7 +51,7 @@ The output files, saved by default in the folder *results*, are the following:
 
 -   **gene_contributions**: Folder with the contributions of each gene in each sample and cell population. Read the DeepLIFT article for more information (<https://arxiv.org/abs/1704.02685>)
 
--   **models.pt** (only if saveModel==True): File necessary for external validation
+-   **models.pt** (only if --saveModel parameter is passed): File necessary for external validation
 
 ## Training reports
 

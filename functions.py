@@ -33,7 +33,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, epoch, report=False, write
         running_loss += loss.item()
     
     
-    # ...log the running loss
+    # Log the running loss
     running_loss /= num_batches
     correct /= size 
     
@@ -83,8 +83,7 @@ def net_train(net, train_dataloader, test_dataloader, dtype, device, report=Fals
                 num_epochs = 1000, min_epochs = 50, eps = 0.01):
     net.to(dtype=dtype, device=device)
     global scheduler
-    # net.apply(init_weights)
-
+    
     # Define loss and optimizer
     loss_fn = nn.CrossEntropyLoss(weight=weights)
     optimizer = torch.optim.SGD(net.parameters(), lr=lr)
@@ -131,12 +130,12 @@ def net_train(net, train_dataloader, test_dataloader, dtype, device, report=Fals
     return [net, minLossEpoch]
 
 # Same as net_train, but modified to train on the whole dataset
-def net_train_whole(net, train_dataloader, dtype, device, report=False, writer=False, weights=None, lr=0.001,
+def net_train_whole(net, train_dataloader, dtype, device, report=False, 
+                writer=False, weights=None, lr=0.001,
                 num_epochs = 1000, min_epochs = 50, eps = 0.01):
     net.to(dtype=dtype, device=device)
     global scheduler
-    # net.apply(init_weights)
-
+    
     # Define loss and optimizer
     loss_fn = nn.CrossEntropyLoss(weight=weights)
     optimizer = torch.optim.SGD(net.parameters(), lr=lr)
@@ -170,6 +169,7 @@ def net_train_whole(net, train_dataloader, dtype, device, report=False, writer=F
     
     return net
 
+# Neural network class: 5 fully connected feed-forward NN
 class NeuralNetwork(nn.Module):
     def __init__(self, Hs1, Hs2, Hs3, Hs4, outNeurons, nGenes):
         super(NeuralNetwork, self).__init__()
@@ -190,13 +190,16 @@ class NeuralNetwork(nn.Module):
         return logits
 
 
+# Return untrained model
 def init_net(Hs1 = 500, Hs2 = 250, Hs3 = 125, Hs4 = 50, outNeurons = 2, nGenes = 100):
     model = NeuralNetwork(Hs1, Hs2, Hs3, Hs4, outNeurons, nGenes)
-    return model # return untrained model
+    return model 
 
-
-def train_evaluate(train_dataset, test_dataloader, Hs1 = 500, Hs2 = 250, Hs3 = 125, Hs4 = 50, outNeurons = 2, report=False, weights=None, lr=0.001,
-                    num_epochs=1000, min_epochs=50, eps=0.01, logPath="./", batchSize=10, cluster="1", foldOut=1, foldIn=1, nGenes = 100, device='cpu'):
+# Main training function: train the models, write reports and return the performance
+def train_evaluate(train_dataset, test_dataloader, Hs1 = 500, Hs2 = 250, Hs3 = 125, 
+                    Hs4 = 50, outNeurons = 2, report=False, weights=None, lr=0.001,
+                    num_epochs=1000, min_epochs=50, eps=0.01, logPath="./", 
+                    batchSize=10, cluster="1", foldOut=1, foldIn=1, nGenes = 100, device='cpu'):
     torch.manual_seed(0)
     global trained_net
     
@@ -207,12 +210,14 @@ def train_evaluate(train_dataset, test_dataloader, Hs1 = 500, Hs2 = 250, Hs3 = 1
     else:
         writer = False
     
-    # constructing a new training data loader allows us to tune the batch size
-    train_dataloader = DataLoader(train_dataset, batch_size=batchSize, shuffle=True, drop_last=True)
+    # Construct the data loader to adapt the batch size
+    train_dataloader = DataLoader(train_dataset, batch_size=batchSize,
+                                    shuffle=True, drop_last=True)
     
     # Get neural net
     untrained_net = init_net(Hs1, Hs2, Hs3, Hs4, outNeurons = outNeurons, nGenes = nGenes)
-    # train
+    
+    # Train
     trainRes = net_train(net=untrained_net, train_dataloader=train_dataloader, test_dataloader = test_dataloader,
                             dtype=dtype, device=device, report=report, writer = writer, weights=weights, lr=lr,
                             num_epochs = num_epochs, min_epochs = min_epochs, eps = eps)
@@ -223,7 +228,7 @@ def train_evaluate(train_dataset, test_dataloader, Hs1 = 500, Hs2 = 250, Hs3 = 1
     if report:
         writer.close()
     
-    # return the MCC of the model as it was trained in this run
+    # Return the MCC of the model as it was trained in this run
     loss_fn = nn.CrossEntropyLoss(weight=weights)
     with torch.no_grad():
         for X, y in test_dataloader:
@@ -248,12 +253,10 @@ def train_whole(train_dataset, Hs1 = 500, Hs2 = 250, Hs3 = 125, Hs4 = 50, outNeu
     else:
         writer = False
     
-    # constructing a new training data loader allows to tune the batch size
     train_dataloader = DataLoader(train_dataset, batch_size=batchSize, shuffle=True, drop_last=True)
     
-    # Get neural net
     untrained_net = init_net(Hs1, Hs2, Hs3, Hs4, outNeurons = outNeurons, nGenes = nGenes)
-    # train
+    
     trained_net = net_train_whole(net=untrained_net, train_dataloader=train_dataloader,
                             dtype=dtype, device=device, report=report, writer = writer, weights=weights, lr=lr,
                             num_epochs = num_epochs, min_epochs = min_epochs, eps = eps)
@@ -267,7 +270,6 @@ def _get_mean_var(X, *, axis=0):
     mean = np.mean(X, axis=axis, dtype=np.float64)
     mean_sq = np.multiply(X, X).mean(axis=axis, dtype=np.float64)
     var = mean_sq - mean**2
-    # enforce R convention (unbiased estimator) for variance
     var *= X.shape[axis] / (X.shape[axis] - 1)
     return mean, var
 
@@ -293,7 +295,6 @@ def scale_fit_transform(
     X -= mean
     X /= std
 
-    # do the clipping
     if max_value is not None:
         X[X > max_value] = max_value
 
@@ -332,13 +333,15 @@ def scale_transform(
     else:
         return X
 
-# Function for a fold 
-# Return testPredictions, a dict with the predictions for each test sample,
-# validationPredictions, a dict with the predictions for each outer fold and test sample,
-# testContributions, the gene contributions for each outer and inner fold,
-# results_Cluster, the phenotype prediction performance for each outer fold
+# Main function
+# Return a list with the following objects:
+# 1) testPredictions, a dict with the predictions for each test sample
+# 2) validationPredictions, a dict with the predictions for each outer fold and sample
+# 3) testContributions, the gene contributions for each outer and inner fold
+# 4) cluster_Results, the label prediction performance for each outer fold
+# 5) outModel, the trained model with all the data for external validation
 
-def singleDeep_core(inPath, varColumn, referenceClass, targetClass, labelsDict, sampleColumn, 
+def singleDeep_core(inPath, varColumn, targetClass, labelsDict, sampleColumn, 
                     expression, metadata, metadataSamples, lr,
                     num_epochs, min_epochs, eps, logPath, 
                     KOuter, KInner, batchProp,
@@ -367,8 +370,7 @@ def singleDeep_core(inPath, varColumn, referenceClass, targetClass, labelsDict, 
         print("Running outer fold " + str(foldOut) + " of " + str(KOuter))
         
         validationPredictions[foldOut] = {}
-        # CVContributions = {}
-        
+
         metadataSamplesTrainOut = metadataSamples.iloc[train_index,:]
         trainOutSamples = list(metadataSamplesTrainOut["Sample"])
         metadataSamplesTest = metadataSamples.iloc[test_index,:]
@@ -497,29 +499,6 @@ def singleDeep_core(inPath, varColumn, referenceClass, targetClass, labelsDict, 
                     
             # End of inner loop
         
-        # meanCVContributions = {}
-        # for i in range(nGenes):
-        #     sum_values = 0.0
-        #     for fold in range(1, KInner+1):
-        #         sum_values += CVContributions[foldIn][i]
-        #     mean = sum_values / KInner
-        #     meanCVContributions[genes[i]] = mean
-        # 
-        # validationContributions[foldOut] = meanCVContributions
-        
-        # Select top features (should be absolute contributions)
-        # topGenes = {k: v for k, v in sorted(validationContributions[foldOut].items(), key=lambda item: item[1], reverse=True)}
-        # topGenes = list(topGenes.keys())[:nFeatures]
-        # 
-        # expr_trainOut = expression.loc[topGenes, cellsTrainOut]
-        # expr_test = expression.loc[topGenes, cellsTest]
-        # 
-        # expr_trainOut = np.array(expr_trainOut).transpose()
-        # expr_test = np.array(expr_test).transpose()
-        
-                
-
-        
         exprLabels_trainOut = np.array(metadata.loc[cellsTrainOut]['LabelInt'])
         exprLabels_test = np.array(metadata.loc[cellsTest]['LabelInt'])
         
@@ -557,25 +536,8 @@ def singleDeep_core(inPath, varColumn, referenceClass, targetClass, labelsDict, 
                                 cluster=cluster, foldIn="test", foldOut=foldOut, nGenes=nGenes, device=device)
         
         minLossEpochs.append(resultsTest[2])
-        # Predict the labels of the test cells
-        # Define the baseline as the mean expression in reference xlass        
-        # baseline = torch.zeros(len(test_dataset), nGenes, requires_grad=True).to(device)
         
-        metadataTestReference =  metadataTest[metadataTest["LabelInt"] == referenceClass]
-        cellsTestReference = list(metadataTestReference.index.values)
-        expr_testReference = expression[cellsTestReference]
-        expr_testReference = np.array(expr_testReference).transpose()
-        expr_testReference = np.mean(expr_testReference, axis=0)
-        baseline = torch.from_numpy(np.tile(expr_testReference, (len(test_dataset), 1))).float().to(device)
-        
-        dl = DeepLift(trained_net)
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore")
-            contributions = dl.attribute(torch.from_numpy(expr_test).float().to(device), baseline,
-                                                target=targetClass)
-        # contributions_means = contributions.mean(dim=0).to("cpu").tolist()
-        
-        # Make predictions for test cells and get mean gene contributions per sample
+        # Make predictions for test cells
         for sample in testSamples:
             metadataSample = metadata[metadata[sampleColumn].isin([sample])]
             # Predict only if there are cells of the sample in this cluster
@@ -592,13 +554,9 @@ def singleDeep_core(inPath, varColumn, referenceClass, targetClass, labelsDict, 
                 labelsPred = pred.argmax(1).cpu().tolist()
                 prediction = max(set(labelsPred), key=labelsPred.count)
                 testPredictions[sample] = prediction
-                # Mean contributions
-                contributionSample = contributions[indexCells]
-                contributionSample_means = contributionSample.mean(dim=0).to("cpu").tolist()
-                testContributions[sample] = contributionSample_means
                 
             
-            # Performance of phenotype prediction for this fold
+            # Performance of label prediction for this fold
             labelsReal = metadataSamples["LabelInt"].loc[list(testPredictions.keys())]
             x = list(labelsReal)
             y = list(testPredictions.values())
@@ -614,57 +572,84 @@ def singleDeep_core(inPath, varColumn, referenceClass, targetClass, labelsDict, 
         if device == "cuda":
             torch.cuda.empty_cache()
             
-    # Train and save the model with all data if requested
+    # Train the model with all data
     outModel = {}
-    if saveModel:
-        print("Saving model")
-        exprLabels = np.array(metadata['LabelInt'])
-        expression = np.array(expression).transpose()
-        # Scaling
-        if scale:
-            expression, meanExpr, stdExpr = scale_fit_transform(expression,
-                                                                return_mean_std=True,
-                                                                max_value=10)
-            outModel["mean"] = meanExpr
-            outModel["std"] = stdExpr
-        
-        expression_dataset = exprDataset(expression, exprLabels)
-        
-        # Assign weights for imbalanced classes
-        weights = []
-        for label in labelsDict.values():
-        	count = exprLabels.tolist().count(label)
-        	w = 1/(count/metadataTrainIn.shape[0])
-        	weights.append(w)
-        
-        weightsScaled = []
-        for weight in weights:
-        	w = weight/sum(weights)
-        	weightsScaled.append(w)
-        
-        weights=torch.as_tensor(weightsScaled).to(device)
-        
-        # Define the neurons in each layer
-        layer1 = round(nGenes/2)
-        layer2 = round(layer1/2)
-        layer3 = round(layer2/2)
-        layer4 = round(layer3/4)
-        outNeurons = len(labels)
-        
-        batchSize = round(len(expression)*batchProp)
-        
-        epochsWhole = round(sum(minLossEpochs) / len(minLossEpochs))
-        
-        train_whole(expression_dataset, layer1, layer2, layer3, layer4, outNeurons, 
-                    report=True, weights=weights, lr=lr, num_epochs = epochsWhole, 
-                    min_epochs=epochsWhole, eps=eps, logPath=logPath, batchSize=batchSize, 
-                    cluster=cluster, nGenes=nGenes, device=device)
-                    
-        outModel["model"] = trained_net.state_dict()
+    exprLabels = np.array(metadata['LabelInt'])
+    expressionReference = expression # Save original expression for deeplift
+    expression = np.array(expression).transpose()
+    # Scaling
+    if scale:
+        expression, meanExpr, stdExpr = scale_fit_transform(expression,
+                                                            return_mean_std=True,
+                                                            max_value=10)
+        outModel["mean"] = meanExpr
+        outModel["std"] = stdExpr
+    
+    expression_dataset = exprDataset(expression, exprLabels)
+    
+    # Assign weights for imbalanced classes
+    weights = []
+    for label in labelsDict.values():
+    	count = exprLabels.tolist().count(label)
+    	w = 1/(count/metadataTrainIn.shape[0])
+    	weights.append(w)
+    
+    weightsScaled = []
+    for weight in weights:
+    	w = weight/sum(weights)
+    	weightsScaled.append(w)
+    
+    weights=torch.as_tensor(weightsScaled).to(device)
+    
+    # Define the neurons in each layer
+    layer1 = round(nGenes/2)
+    layer2 = round(layer1/2)
+    layer3 = round(layer2/2)
+    layer4 = round(layer3/4)
+    outNeurons = len(labels)
+    
+    batchSize = round(len(expression)*batchProp)
+    
+    epochsWhole = round(sum(minLossEpochs) / len(minLossEpochs))
+    
+    train_whole(expression_dataset, layer1, layer2, layer3, layer4, outNeurons, 
+                report=True, weights=weights, lr=lr, num_epochs = epochsWhole, 
+                min_epochs=epochsWhole, eps=eps, logPath=logPath, batchSize=batchSize, 
+                cluster=cluster, nGenes=nGenes, device=device)
+    
+    # Calculate genes contributions
+    # Define the baseline as 0 for easy interpretation
+    baseline = torch.zeros(len(expression), nGenes, requires_grad=True).to(device)
+    
+    dl = DeepLift(trained_net)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore")
+        contributions = dl.attribute(torch.from_numpy(expression).float().to(device), baseline,
+                                            target=targetClass)
+    
+    samples = list(metadataSamples["Sample"])
+    cells = list(metadata.index.values)
+    
+    for sample in samples:
+        metadataSample = metadata[metadata[sampleColumn].isin([sample])]
+        # Predict only if there are cells of the sample in this cluster
+        if metadataSample.shape[0] > 0:
+            cellsSample = list(metadataSample.index.values)
+            indexCells = []
+            for cell in cellsSample:
+                ind = cells.index(cell)
+                indexCells.append(ind)
+            # Mean contributions
+            contributionSample = contributions[indexCells]
+            contributionSample_means = contributionSample.mean(dim=0).to("cpu").tolist()
+            testContributions[sample] = contributionSample_means
+                
+    outModel["model"] = trained_net.state_dict()
         
     return([testPredictions, validationPredictions, testContributions, cluster_Results, outModel])
 
 
+# Predict samples using a previously trained model
 def singleDeep_predict(inPath, sampleColumn, 
                         expression, metadata, metadataSamples,
                         cluster, scale, training_cluster):
