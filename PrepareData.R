@@ -36,12 +36,17 @@ option_list <- list(
                 help="Maximum number of cells per cluster. If the number of
         cells is higher than this, random cells are removed"),
     make_option(c("--outPath"), type="character", default= "outData",
-                help="Output path")
+                help="Output path"),
+    make_option(c("--pythonPath"), type="character", default= NULL,
+                help="Path to the Python executables.")
 )
 
 opt_parser <- OptionParser(option_list=option_list)
 opt <- parse_args(opt_parser)
 
+if(!is.null(opt$pythonPath)){
+    use_python(opt$pythonPath)
+}
 #Controls:
 #opt$fileType
 if(!(opt$fileType== "scanpy" | opt$fileType == "seurat")){
@@ -171,3 +176,4 @@ if(fileType == "seurat"){
 } else{
     write.table(colnames(exprMatrix), paste0(outPath, "/genes.txt"), sep="\t", quote = F)
 }
+
