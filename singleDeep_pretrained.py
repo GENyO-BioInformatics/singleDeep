@@ -41,8 +41,6 @@ import itertools
 #########################
 
 # Dicts to store the results
-test_Results = {}
-cluster_Results = {}
 testPredictions = {}
 
 

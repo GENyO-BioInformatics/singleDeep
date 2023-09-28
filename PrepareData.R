@@ -29,9 +29,12 @@ option_list <- list(
         separate the names by ','. Example: col1,col2"),
     make_option(c("--clusterColumn"), type="character", default= NULL,
                 help="Specify the columns with cluster information"),
-    make_option(c("--minCells"), type="numeric", default= 0,
+    make_option(c("--minCellsSample"), type="numeric", default= 0,
                 help="Minimum number of cells that must contain
         each sample in each cluster"),
+    make_option(c("--minCells"), type="numeric", default= 100,
+                help="Minimum number of cells per cluster. If the number of
+        cells is lower than this, the cluster is removed"),
     make_option(c("--maxCells"), type="numeric", default= 50000,
                 help="Maximum number of cells per cluster. If the number of
         cells is higher than this, random cells are removed"),
@@ -92,6 +95,7 @@ slotSeurat <- opt$slotSeurat
 sampleColumn <- opt$sampleColumn
 clinicalColumns <- unlist(strsplit(opt$clinicalColumns, ","))
 clusterColumn <- opt$clusterColumn
+minCellsSample <- opt$minCellsSample
 minCells <- opt$minCells
 maxCells <- opt$maxCells
 outPath <- opt$outPath
@@ -134,17 +138,19 @@ if (length(clinicalColumns) > 1) {
 
 # Calculate the number of samples with a minimum of cells in each cluster
 clusterSamples <- c()
+clusterNCells <- c()
 for (cluster in clusters) {
     metaCluster <- metadataCells[metadataCells[,clusterColumn] == cluster,]
     nCellsCluster <- sapply(samples, function(x) {sum(metaCluster[,sampleColumn] == x)})
-    nSamplesPass <- sum(nCellsCluster >= minCells)
+    nSamplesPass <- sum(nCellsCluster >= minCellsSample)
     clusterSamples <- c(clusterSamples, nSamplesPass)
+    clusterNCells <- c(clusterNCells, nrow(metaCluster))
 }
 names(clusterSamples) <- clusters
 
 # Save data for singleDeep ------------------------------------------------
 
-clustersOK <- names(clusterSamples)[clusterSamples == length(samples)]
+clustersOK <- names(clusterSamples)[clusterSamples == length(samples) & clusterNCells >= minCells]
 
 dir.create(outPath, showWarnings = FALSE)
 set.seed(123)
@@ -176,4 +182,3 @@ if(fileType == "seurat"){
 } else{
     write.table(colnames(exprMatrix), paste0(outPath, "/genes.txt"), sep="\t", quote = F)
 }
-
