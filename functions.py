@@ -575,7 +575,6 @@ def singleDeep_core(inPath, varColumn, targetClass, labelsDict, sampleColumn,
     # Train the model with all data
     outModel = {}
     exprLabels = np.array(metadata['LabelInt'])
-    expressionReference = expression # Save original expression for deeplift
     expression = np.array(expression).transpose()
     # Scaling
     if scale:
@@ -591,7 +590,7 @@ def singleDeep_core(inPath, varColumn, targetClass, labelsDict, sampleColumn,
     weights = []
     for label in labelsDict.values():
     	count = exprLabels.tolist().count(label)
-    	w = 1/(count/metadataTrainIn.shape[0])
+    	w = 1/(count/metadata.shape[0])
     	weights.append(w)
     
     weightsScaled = []
@@ -618,8 +617,9 @@ def singleDeep_core(inPath, varColumn, targetClass, labelsDict, sampleColumn,
                 cluster=cluster, nGenes=nGenes, device=device)
     
     # Calculate genes contributions
-    # Define the baseline as 0 for easy interpretation
-    baseline = torch.zeros(len(expression), nGenes, requires_grad=True).to(device)
+    # Define the baseline as the minimum expression for each gene
+    minExpressionGenes = expression.min(axis=0)
+    baseline = torch.from_numpy(np.tile(minExpressionGenes, (len(expression_dataset), 1))).float().to(device)
     
     dl = DeepLift(trained_net)
     with warnings.catch_warnings():
@@ -706,4 +706,5 @@ def singleDeep_predict(inPath, sampleColumn,
         torch.cuda.empty_cache()
 
     return(testPredictions)
+
 
