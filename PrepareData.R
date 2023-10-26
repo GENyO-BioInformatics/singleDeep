@@ -1,5 +1,5 @@
 # Load and install missing packages
-packages = c("optparse", "Seurat", "reticulate")
+packages = c("optparse", "Seurat", "reticulate", "biomaRt")
 package.check <- lapply(
     packages,
     FUN = function(x) {
@@ -29,6 +29,10 @@ option_list <- list(
         separate the names by ','. Example: col1,col2"),
     make_option(c("--clusterColumn"), type="character", default= NULL,
                 help="Specify the columns with cluster information"),
+    make_option(c("--filterGenes"), type="logical", action="store_true",
+                help="Filter non-coding, mitochondrial, ribosomal and hemoglobulin genes (recommended)"),
+    make_option(c("--organism"), type="character", default= "hsapiens",
+                help="BiomaRt organism to annotate the genes for filtering"),
     make_option(c("--minCellsSample"), type="numeric", default= 0,
                 help="Minimum number of cells that must contain
         each sample in each cluster"),
@@ -95,6 +99,8 @@ slotSeurat <- opt$slotSeurat
 sampleColumn <- opt$sampleColumn
 clinicalColumns <- unlist(strsplit(opt$clinicalColumns, ","))
 clusterColumn <- opt$clusterColumn
+filterGenes <- opt$filterGenes
+organism <- opt$organism
 minCellsSample <- opt$minCellsSample
 minCells <- opt$minCells
 maxCells <- opt$maxCells
@@ -147,6 +153,37 @@ for (cluster in clusters) {
     clusterNCells <- c(clusterNCells, nrow(metaCluster))
 }
 names(clusterSamples) <- clusters
+
+
+# Gene filtering ----------------------------------------------------------
+if (fileType == "seurat") {
+    genesData <- rownames(exprMatrix)
+} else {
+    genesData <- colnames(exprMatrix)
+}
+
+if (filterGenes) {
+
+    # Get gene annotation
+    dataset <- paste0(organism, "_gene_ensembl")
+    mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset = dataset)
+    annot <- getBM(c("external_gene_name","gene_biotype"), mart = mart,
+                   filters = "external_gene_name", values = genesData)
+
+    mitGenes <- grep("^MT-", toupper(genesData), value = T)
+    ribGenes <- grep("^RPL", toupper(genesData), value = T)
+    ribGenes <- c(ribGenes, grep("^RPS", toupper(genesData), value = T))
+    hbGenes <- grep("^HB", toupper(genesData), value = T)
+    nonCodingGenes <- annot[annot[,2] != "protein_coding",1]
+    listExclusion <- c(mitGenes, ribGenes, hbGenes, nonCodingGenes)
+
+    if (fileType == "seurat") {
+        exprMatrix <- exprMatrix[!genesData %in% listExclusion,]
+    } else {
+        exprMatrix <- exprMatrix[,!genesData %in% listExclusion]
+    }
+
+}
 
 # Save data for singleDeep ------------------------------------------------
 
