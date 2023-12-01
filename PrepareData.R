@@ -1,14 +1,7 @@
-# Load and install missing packages
-packages = c("optparse", "Seurat", "reticulate", "biomaRt")
-package.check <- lapply(
-    packages,
-    FUN = function(x) {
-        if (!require(x, character.only = TRUE)) {
-            install.packages(x, dependencies = TRUE)
-            library(x, character.only = TRUE)
-        }
-    }
-)
+if (!require("optparse", character.only = TRUE)) {
+    install.packages("optparse", dependencies = TRUE)
+    library("optparse", character.only = TRUE)
+}
 
 # Parameters definiton
 option_list <- list(
@@ -29,7 +22,7 @@ option_list <- list(
         separate the names by ','. Example: col1,col2"),
     make_option(c("--clusterColumn"), type="character", default= NULL,
                 help="Specify the columns with cluster information"),
-    make_option(c("--filterGenes"), type="logical", action="store_true",
+    make_option(c("--filterGenes"), type="logical", action="store_true", default = FALSE,
                 help="Filter non-coding, mitochondrial, ribosomal and hemoglobulin genes (recommended)"),
     make_option(c("--organism"), type="character", default= "hsapiens",
                 help="BiomaRt organism to annotate the genes for filtering"),
@@ -45,15 +38,12 @@ option_list <- list(
     make_option(c("--outPath"), type="character", default= "outData",
                 help="Output path"),
     make_option(c("--pythonPath"), type="character", default= NULL,
-                help="Path to the Python executables.")
+                help="Path to the Python executables. Only if fileType == scanpy")
 )
 
 opt_parser <- OptionParser(option_list=option_list)
 opt <- parse_args(opt_parser)
 
-if(!is.null(opt$pythonPath)){
-    use_python(opt$pythonPath)
-}
 #Controls:
 #opt$fileType
 if(!(opt$fileType== "scanpy" | opt$fileType == "seurat")){
@@ -106,7 +96,33 @@ minCells <- opt$minCells
 maxCells <- opt$maxCells
 outPath <- opt$outPath
 
+# Load and install missing packages
+if (fileType == "seurat") {
+    if (!require("Seurat", character.only = TRUE)) {
+        install.packages("Seurat", dependencies = TRUE)
+        library("Seurat", character.only = TRUE)
+    }
+} else {
+    if (!require("reticulate", character.only = TRUE)) {
+        install.packages("reticulate", dependencies = TRUE)
+        library("reticulate", character.only = TRUE)
+    }
+}
 
+if (filterGenes) {
+    if (!require("BiocManager", character.only = TRUE)) {
+        install.packages("BiocManager", dependencies = TRUE)
+        library("BiocManager", character.only = TRUE)
+    }
+    if (!require("biomaRt", character.only = TRUE)) {
+        BiocManager::install("biomaRt", dependencies = TRUE)
+        library("biomaRt", character.only = TRUE)
+    }
+}
+
+if(!is.null(opt$pythonPath) & fileType == "scanpy"){
+    use_python(opt$pythonPath)
+}
 
 # Data loading ------------------------------------------------------------
 if (fileType == "seurat") {
@@ -163,26 +179,26 @@ if (fileType == "seurat") {
 }
 
 if (filterGenes) {
-
+    
     # Get gene annotation
     dataset <- paste0(organism, "_gene_ensembl")
     mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset = dataset)
     annot <- getBM(c("external_gene_name","gene_biotype"), mart = mart,
                    filters = "external_gene_name", values = genesData)
-
+    
     mitGenes <- grep("^MT-", toupper(genesData), value = T)
     ribGenes <- grep("^RPL", toupper(genesData), value = T)
     ribGenes <- c(ribGenes, grep("^RPS", toupper(genesData), value = T))
     hbGenes <- grep("^HB", toupper(genesData), value = T)
     nonCodingGenes <- annot[annot[,2] != "protein_coding",1]
     listExclusion <- c(mitGenes, ribGenes, hbGenes, nonCodingGenes)
-
+    
     if (fileType == "seurat") {
         exprMatrix <- exprMatrix[!genesData %in% listExclusion,]
     } else {
         exprMatrix <- exprMatrix[,!genesData %in% listExclusion]
     }
-
+    
 }
 
 # Save data for singleDeep ------------------------------------------------

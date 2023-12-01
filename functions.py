@@ -244,7 +244,7 @@ def train_evaluate(train_dataset, test_dataloader, Hs1 = 500, Hs2 = 250, Hs3 = 1
 def train_whole(train_dataset, Hs1 = 500, Hs2 = 250, Hs3 = 125, Hs4 = 50, outNeurons = 2, report=False, weights=None, lr=0.001,
                     num_epochs=1000, min_epochs=50, eps=0.01, logPath="./", batchSize=10, cluster="1", nGenes = 100, device='cpu'):
     torch.manual_seed(0)
-    global trained_net
+    global trained_net_whole
     
     dtype = torch.float
     
@@ -257,7 +257,7 @@ def train_whole(train_dataset, Hs1 = 500, Hs2 = 250, Hs3 = 125, Hs4 = 50, outNeu
     
     untrained_net = init_net(Hs1, Hs2, Hs3, Hs4, outNeurons = outNeurons, nGenes = nGenes)
     
-    trained_net = net_train_whole(net=untrained_net, train_dataloader=train_dataloader,
+    trained_net_whole = net_train_whole(net=untrained_net, train_dataloader=train_dataloader,
                             dtype=dtype, device=device, report=report, writer = writer, weights=weights, lr=lr,
                             num_epochs = num_epochs, min_epochs = min_epochs, eps = eps)
     
@@ -621,7 +621,7 @@ def singleDeep_core(inPath, varColumn, targetClass, labelsDict, sampleColumn,
     minExpressionGenes = expression.min(axis=0)
     baseline = torch.from_numpy(np.tile(minExpressionGenes, (len(expression_dataset), 1))).float().to(device)
     
-    dl = DeepLift(trained_net)
+    dl = DeepLift(trained_net_whole, multiply_by_inputs = False)
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
         contributions = dl.attribute(torch.from_numpy(expression).float().to(device), baseline,
@@ -643,8 +643,13 @@ def singleDeep_core(inPath, varColumn, targetClass, labelsDict, sampleColumn,
             contributionSample = contributions[indexCells]
             contributionSample_means = contributionSample.mean(dim=0).to("cpu").tolist()
             testContributions[sample] = contributionSample_means
+            # contributionSample = contributionSample.to("cpu").detach().numpy()
+            # max_abs_index = np.argmax(np.abs(contributionSample), axis=0)
+            # contributionSampleMax = contributionSample[max_abs_index, np.arange(contributionSample.shape[1])]
+            # testContributions[sample] = contributionSampleMax
+
                 
-    outModel["model"] = trained_net.state_dict()
+    outModel["model"] = trained_net_whole.state_dict()
         
     return([testPredictions, validationPredictions, testContributions, cluster_Results, outModel])
 
