@@ -11,6 +11,7 @@ parser.add_argument('--resultsFilenames', type=str, default='singleDeep_results'
 parser.add_argument('--logPath', type=str, default='./log', help='Folder to save the generated reports')
 parser.add_argument('--varColumn', type=str, default='Condition', help='Column in Phenotype.tsv that contains the analyzed variable')
 parser.add_argument('--targetClass', type=int, default=1, help='Gene contributions are calculated related to this class (default = 1, i.e. the second alphabetically ordered category)')
+parser.add_argument('--contributions', type=str, default='local', help='Calculate local or global contributions')
 parser.add_argument('--sampleColumn', type=str, default='Sample', help='Column in the metadata of clusters with the sample name')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning rate')
 parser.add_argument('--KOuter', type=int, default=5, help='Folds for the outer cross-validation')
@@ -30,6 +31,7 @@ resultsFilenames = args.resultsFilenames
 logPath = args.logPath
 varColumn = args.varColumn
 targetClass = args.targetClass
+contributions = args.contributions
 sampleColumn = args.sampleColumn
 lr = args.lr
 KOuter = args.KOuter
@@ -138,8 +140,9 @@ for cluster in clusters:
     metadata["LabelInt"] = metadata[varColumn].map(labelsDict)
     
     # Get the results for all folds of the cluster
-    resultsCluster = singleDeep_core(inPath, varColumn, targetClass, labelsDict, 
-                                sampleColumn, expression, metadata, metadataSamples,
+    resultsCluster = singleDeep_core(inPath, varColumn, targetClass, contributions,
+                                labelsDict, sampleColumn,
+                                 expression, metadata, metadataSamples,
                                 lr, num_epochs, min_epochs, eps,
                                 logPath, KOuter, KInner, batchProp, 
                                 labels, genes, cluster, scale, saveModel)

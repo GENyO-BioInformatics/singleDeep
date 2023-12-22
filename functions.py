@@ -341,7 +341,8 @@ def scale_transform(
 # 4) cluster_Results, the label prediction performance for each outer fold
 # 5) outModel, the trained model with all the data for external validation
 
-def singleDeep_core(inPath, varColumn, targetClass, labelsDict, sampleColumn, 
+def singleDeep_core(inPath, varColumn, targetClass, contributions,
+                    labelsDict, sampleColumn, 
                     expression, metadata, metadataSamples, lr,
                     num_epochs, min_epochs, eps, logPath, 
                     KOuter, KInner, batchProp,
@@ -621,7 +622,11 @@ def singleDeep_core(inPath, varColumn, targetClass, labelsDict, sampleColumn,
     minExpressionGenes = expression.min(axis=0)
     baseline = torch.from_numpy(np.tile(minExpressionGenes, (len(expression_dataset), 1))).float().to(device)
     
-    dl = DeepLift(trained_net_whole, multiply_by_inputs = False)
+    if contributions == "local":
+        dl = DeepLift(trained_net_whole, multiply_by_inputs = False)
+    else:
+        dl = DeepLift(trained_net_whole, multiply_by_inputs = True)
+    
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
         contributions = dl.attribute(torch.from_numpy(expression).float().to(device), baseline,
