@@ -55,7 +55,7 @@ for file in filesMeta:
 
 clusters.sort()
 
-metadataSamples = pd.read_table(inPath + '/Phenodata.tsv')
+metadataSamples = pd.read_table(inPath + '/Phenodata.tsv', index_col=0)
 
 
 # Load training parameters
@@ -76,8 +76,8 @@ for cluster in clusters:
         print("Analyzing cluster " + cluster)
         
         # Read files
-        expression = pd.read_table(inPath + '/' + cluster + '.tsv')
-        metadata = pd.read_table(inPath + '/Metadata_' + cluster + '.tsv')
+        expression = pd.read_table(inPath + '/' + cluster + '.tsv', index_col=0)
+        metadata = pd.read_table(inPath + '/Metadata_' + cluster + '.tsv', index_col=0)
         
         # Predict the labels for each cell
         testPredictions[cluster] = singleDeep_predict(inPath, sampleColumn, expression, metadata, metadataSamples,

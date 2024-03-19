@@ -111,7 +111,7 @@ for file in filesMeta:
 clusters.sort()
 
 # Prepare metadata
-metadataSamples = pd.read_table(inPath + '/Phenodata.tsv')
+metadataSamples = pd.read_table(inPath + '/Phenodata.tsv', index_col=0)
 
 ## Assign categorical labels to numbers
 labels = sorted(list(set(metadataSamples[varColumn])))
@@ -124,7 +124,7 @@ for label in labels:
 
 metadataSamples["LabelInt"] = metadataSamples[varColumn].map(labelsDict)
 
-genes = pd.read_table(inPath + "/genes.txt")['x'].tolist()
+genes = pd.read_table(inPath + "/genes.txt", index_col=0).iloc[:,0].tolist()
 
 
 #############################
@@ -135,8 +135,8 @@ for cluster in clusters:
     print("Analyzing cluster " + cluster)
     
     # Read files
-    expression = pd.read_table(inPath + '/' + cluster + '.tsv')
-    metadata = pd.read_table(inPath + '/Metadata_' + cluster + '.tsv')
+    expression = pd.read_table(inPath + '/' + cluster + '.tsv', index_col=0)
+    metadata = pd.read_table(inPath + '/Metadata_' + cluster + '.tsv', index_col=0)
     metadata["LabelInt"] = metadata[varColumn].map(labelsDict)
     
     # Get the results for all folds of the cluster
