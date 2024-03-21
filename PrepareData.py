@@ -70,8 +70,11 @@ for cluster in clustersOK:
     exprCluster.to_csv(os.path.join(args.outPath, f"{cluster}.tsv"), sep="\t", index=True, header=True)
     metaCluster.index.name=None
     metaCluster = metaCluster.rename_axis(None, axis=1)
+    metaCluster.columns = metaCluster.columns.str.replace(' ', '_')
     metaCluster.to_csv(os.path.join(args.outPath, f"Metadata_{cluster}.tsv"), sep="\t", index=True, header=True)
 
+
+metadataSamples.columns = metadataSamples.columns.str.replace(' ', '_')
 metadataSamples.to_csv(os.path.join(args.outPath, "Phenodata.tsv"), sep="\t", index=True, header=True)
 
 genes = pd.DataFrame(adata.var_names)

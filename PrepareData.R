@@ -224,10 +224,11 @@ for (cluster in clustersOK) {
     }
 
     write.table(exprCluster, paste0(outPath, "/", cluster, ".tsv"), sep="\t", quote = F)
+    colnames(metaCluster) <- gsub(" ","_", colnames(metaCluster))
     write.table(metaCluster, paste0(outPath, "/", "Metadata_", cluster, ".tsv"), sep="\t", quote = F)
 }
 
-
+colnames(metadataSamples) <- gsub(" ","_", colnames(metadataSamples))
 write.table(metadataSamples, paste0(outPath, "/Phenodata.tsv"), sep="\t", quote = F)
 
 if(fileType == "seurat"){
