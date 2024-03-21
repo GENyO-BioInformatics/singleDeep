@@ -104,8 +104,8 @@ filesMeta = glob.glob(inPath + '/Metadata*')
 clusters = []
 
 for file in filesMeta:
-	cluster = file.split('_')[-1]
-	cluster = cluster.split('.')[0]
+	cluster = "_".join(file.split('_')[1:])
+	cluster = ".".join(cluster.split('.')[:-1])
 	clusters.append(cluster)
 
 clusters.sort()
