@@ -20,6 +20,9 @@ option_list <- list(
                 help="Specify the columns with clinical information.
         If there are more than one columns,
         separate the names by ','. Example: col1,col2"),
+    make_option(c("--targetColumn"), type="character",
+                default= NULL,
+                help="Specify the column with the class to be predicted"),
     make_option(c("--clusterColumn"), type="character", default= NULL,
                 help="Specify the columns with cluster information"),
     make_option(c("--filterGenes"), type="logical", action="store_true", default = FALSE,
@@ -29,6 +32,9 @@ option_list <- list(
     make_option(c("--minCellsSample"), type="numeric", default= 0,
                 help="Minimum number of cells that must contain
         each sample in each cluster"),
+    make_option(c("--minCellsClass"), type="numeric", default= 10,
+                help="Minimum number of cells that must contain
+        each target class in each cluster"),
     make_option(c("--minCells"), type="numeric", default= 100,
                 help="Minimum number of cells per cluster. If the number of
         cells is lower than this, the cluster is removed"),
@@ -88,10 +94,12 @@ fileType <- opt$fileType
 slotSeurat <- opt$slotSeurat
 sampleColumn <- opt$sampleColumn
 clinicalColumns <- unlist(strsplit(opt$clinicalColumns, ","))
+targetColumn <- opt$targetColumn
 clusterColumn <- opt$clusterColumn
 filterGenes <- opt$filterGenes
 organism <- opt$organism
 minCellsSample <- opt$minCellsSample
+minCellsClass <- opt$minCellsClass
 minCells <- opt$minCells
 maxCells <- opt$maxCells
 outPath <- opt$outPath
@@ -160,15 +168,18 @@ if (length(clinicalColumns) > 1) {
 
 # Calculate the number of samples with a minimum of cells in each cluster
 clusterSamples <- c()
+clusterClassCells <- c()
 clusterNCells <- c()
 for (cluster in clusters) {
     metaCluster <- metadataCells[metadataCells[,clusterColumn] == cluster,]
     nCellsCluster <- sapply(samples, function(x) {sum(metaCluster[,sampleColumn] == x)})
     nSamplesPass <- sum(nCellsCluster >= minCellsSample)
     clusterSamples <- c(clusterSamples, nSamplesPass)
+    clusterClassCells <- c(clusterClassCells, min(table(metaCluster[,targetColumn])))
     clusterNCells <- c(clusterNCells, nrow(metaCluster))
 }
 names(clusterSamples) <- clusters
+names(clusterClassCells) <- clusters
 
 
 # Gene filtering ----------------------------------------------------------
@@ -203,7 +214,7 @@ if (filterGenes) {
 
 # Save data for singleDeep ------------------------------------------------
 
-clustersOK <- names(clusterSamples)[clusterSamples == length(samples) & clusterNCells >= minCells]
+clustersOK <- names(clusterSamples)[clusterSamples == length(samples) & clusterClassCells >= minCellsClass & clusterNCells >= minCells]
 
 dir.create(outPath, showWarnings = FALSE)
 set.seed(123)
