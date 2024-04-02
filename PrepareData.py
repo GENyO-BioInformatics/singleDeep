@@ -53,7 +53,12 @@ for cluster in clusters:
     nCellsCluster = [sum(metaCluster[args.sampleColumn] == sample) for sample in samples]
     nSamplesPass = sum(np.array(nCellsCluster) >= args.minCellsSample)
     clusterSamples[cluster] = nSamplesPass
-    clusterClassCells[cluster] = min(Counter(metaCluster[args.targetColumn].tolist()).values())
+    emptyCounter = {}
+    for classTarget in metadataCells[args.targetColumn].unique():
+        emptyCounter[classTarget] = 0
+    emptyCounter = Counter(emptyCounter)
+    emptyCounter.update(metaCluster[args.targetColumn].tolist())
+    clusterClassCells[cluster] = min(emptyCounter.values())
     clusterNCells[cluster] = metaCluster.shape[0]
 
 # Save data for singleDeep
