@@ -5,3 +5,4 @@ numpy==1.23.0
 captum==0.6.0
 scanpy==1.9.6
 tensorboard==2.9.0
+pybiomart==0.2.0

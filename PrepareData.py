@@ -5,6 +5,8 @@ import numpy as np
 import os
 import random
 from collections import Counter
+from pybiomart import Dataset
+import re
 
 # Define argument parser
 parser = argparse.ArgumentParser(description="Process arguments.")
@@ -13,6 +15,8 @@ parser.add_argument("--sampleColumn", type=str, default=None, help="Metadata col
 parser.add_argument("--clinicalColumns", type=str, default=None, help="Specify the columns with clinical information. If there are more than one columns, separate the names by ','. Example: col1,col2")
 parser.add_argument("--targetColumn", type=str, default=None, help="Specify the column with the class to be predicted")
 parser.add_argument("--clusterColumn", type=str, default=None, help="Specify the columns with cluster information")
+parser.add_argument("--filterGenes", action="store_true", default=False, help="Filter non-coding, mitochondrial, ribosomal and hemoglobulin genes (recommended)")
+parser.add_argument("--organism", type=str, default="hsapiens", help="BiomaRt organism to annotate the genes for filtering"),
 parser.add_argument("--minCellsSample", type=int, default=0, help="Minimum number of cells that must contain each sample in each cluster")
 parser.add_argument("--minCellsClass", type=int, default=10, help="Minimum number of cells that must contain each target class in each cluster")
 parser.add_argument("--minCells", type=int, default=100, help="Minimum number of cells per cluster. If the number of cells is lower than this, the cluster is removed")
@@ -61,6 +65,25 @@ for cluster in clusters:
     clusterClassCells[cluster] = min(emptyCounter.values())
     clusterNCells[cluster] = metaCluster.shape[0]
 
+
+# Gene filtering
+genes = list(adata.var_names)
+
+if args.filterGenes:
+    # Get gene annotation
+    dataset = args.organism + "_gene_ensembl"
+    mart = Dataset(name=dataset, host="http://www.ensembl.org")
+    annot = mart.query(attributes=["external_gene_name", "gene_biotype"])
+    mitGenes = [gene for gene in genes if re.match("^MT-", gene.upper())]
+    ribGenes = [gene for gene in genes if re.match("^RPL", gene.upper())]
+    ribGenes.extend([gene for gene in genes if re.match("^RPS", gene.upper())])
+    hbGenes = [gene for gene in genes if re.match("^HB", gene.upper())]
+    nonCodingGenes = annot[annot["Gene type"] != "protein_coding"]
+    nonCodingGenes = nonCodingGenes["Gene name"].tolist()
+    listExclusion = mitGenes + ribGenes + hbGenes + nonCodingGenes
+    exprMatrix = exprMatrix[:, ~np.isin(genes, listExclusion)]
+
+
 # Save data for singleDeep
 clustersOK = [cluster for cluster, n_samples in clusterSamples.items() if n_samples == len(samples) and clusterClassCells[cluster] >= args.minCellsClass and clusterNCells[cluster] >= args.minCells]
 os.makedirs(args.outPath, exist_ok=True)
@@ -87,6 +110,11 @@ for cluster in clustersOK:
 metadataSamples.columns = metadataSamples.columns.str.replace(' ', '_')
 metadataSamples.to_csv(os.path.join(args.outPath, "Phenodata.tsv"), sep="\t", index=True, header=True)
 
-genes = pd.DataFrame(adata.var_names)
+if args.filterGenes:
+    genes = [gene for gene in genes if gene not in listExclusion]
+else:
+    genes = adata.var_names
+
+genes = pd.DataFrame(genes)
 genes.to_csv(os.path.join(args.outPath, "genes.txt"), sep="\t", index=True, header=True)
 
