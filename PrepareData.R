@@ -234,6 +234,7 @@ for (cluster in clustersOK) {
         exprCluster <- t(exprCluster)
     }
 
+    cluster <- gsub("/", "_", cluster) # To avoid path problems
     write.table(exprCluster, paste0(outPath, "/", cluster, ".tsv"), sep="\t", quote = F)
     colnames(metaCluster) <- gsub(" ","_", colnames(metaCluster))
     write.table(metaCluster, paste0(outPath, "/", "Metadata_", cluster, ".tsv"), sep="\t", quote = F)

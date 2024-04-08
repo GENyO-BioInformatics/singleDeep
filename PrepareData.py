@@ -100,6 +100,7 @@ for cluster in clustersOK:
     exprCluster = exprCluster.to_df().T
     exprCluster.index.name=None
     exprCluster = exprCluster.rename_axis(None, axis=1)
+    cluster = cluster.replace("/", "_")
     exprCluster.to_csv(os.path.join(args.outPath, f"{cluster}.tsv"), sep="\t", index=True, header=True)
     metaCluster.index.name=None
     metaCluster = metaCluster.rename_axis(None, axis=1)
