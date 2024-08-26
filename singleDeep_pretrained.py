@@ -5,6 +5,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Using models trained with singleDeep to predict new samples phenotypes')
 
+# Define the parameters and default values
 parser.add_argument('--inPath', type=str, help='Folder with the input data (output of PrepareData.R script)')
 parser.add_argument('--modelFile', type=str, help='Saved model (output of singleDeep.py script)')
 parser.add_argument('--sampleColumn', type=str, default='Sample', help='Column in the metadata of clusters with the sample name')
@@ -13,6 +14,7 @@ parser.add_argument('--scale', action='store_true', help='Scale the data')
 
 args = parser.parse_args()
 
+# Assign the paramters to variables
 inPath = args.inPath
 modelFile = args.modelFile
 sampleColumn = args.sampleColumn
@@ -40,26 +42,29 @@ import itertools
 ### Environment setup ###
 #########################
 
-# Dicts to store the results
+# Dictionary to store the predictions
 testPredictions = {}
 
 
-# Get the cluster names
-filesMeta = glob.glob(inPath + '/Metadata*')
-clusters = []
+# Get the cluster names from the metadata
+filesMeta = glob.glob(inPath + '/Metadata*') # Get the metadata file names
+clusters = [] # To store the cluster names
 
+# Get the cluster names from the metadata files names, discarding the path
 for file in filesMeta:
     cluster = "/".join(file.split('/')[-1:])
     cluster = "_".join(cluster.split('_')[1:])
     cluster = ".".join(cluster.split('.')[:-1])
     clusters.append(cluster)
 
+# Sort the clusters alphabetically
 clusters.sort()
 
+# Prepare metadata for samples
 metadataSamples = pd.read_table(inPath + '/Phenodata.tsv', index_col=0)
 
 
-# Load training parameters
+# Load parameters from the trained models
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 training_dict = torch.load(modelFile, map_location=device)
 
@@ -68,6 +73,7 @@ training_dict = torch.load(modelFile, map_location=device)
 ### Perform predictions ###
 ###########################
 
+# Predictions are done for each cluster/cell type, each one with the corresponding pretrained model
 for cluster in clusters:
     training_cluster = training_dict[cluster]
     
@@ -91,8 +97,8 @@ for sample in metadataSamples["Sample"]:
     for cluster in clusters:
         # Only vote if a prediction has been computed for the sample in this cluster
         if sample in testPredictions[cluster].keys():
-            nVotes = max(0, round(training_dict[cluster]['MCC'] * 100))
-            votes = [testPredictions[cluster][sample]] * nVotes
+            nVotes = max(0, round(training_dict[cluster]['MCC'] * 100)) # Range between 0 to 100 votes depending on the cluster performance
+            votes = [testPredictions[cluster][sample]] * nVotes # Add the label as many times as votes
             predictionsSample.append(votes)
     predictionsSample = list(itertools.chain.from_iterable(predictionsSample))
     if len(predictionsSample) > 0:
@@ -105,6 +111,8 @@ for sample in metadataSamples["Sample"]:
 ######################
 ### Export results ###
 ######################
+
+# Create and write a dataframe with the predictions
 results_pd = pd.DataFrame.from_dict(labelsPredicted, orient = "index")
 results_pd.columns = ['label_predicted']
 results_pd.to_csv(outFile, sep="\t")

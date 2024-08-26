@@ -1,3 +1,4 @@
+# Install optparse package to parse the parameters
 if (!require("optparse", character.only = TRUE)) {
     install.packages("optparse", dependencies = TRUE)
     library("optparse", character.only = TRUE)
@@ -50,45 +51,39 @@ option_list <- list(
 opt_parser <- OptionParser(option_list=option_list)
 opt <- parse_args(opt_parser)
 
-#Controls:
-#opt$fileType
+# Checks
 if(!(opt$fileType== "scanpy" | opt$fileType == "seurat")){
     stop("It has not been specified if the file type is scanpy or seurat")
 }
 
-#Default slotSeurat
+# Default slotSeurat to scale.data if not defined
 if(opt$fileType == "seurat" & is.null(opt$slotSeurat)){
     opt$slotSeurat <- "scale.data"
 }
 
-#Default columns in Seurat objects
-# sample
+#Default columns in Seurat objects if not defined
 if(opt$fileType == "seurat" & is.null(opt$sampleColumn)){
     opt$sampleColumn <- "orig.ident"
 }
-#clinical
 if(opt$fileType == "seurat" & is.null(opt$clinicalColumns)){
     opt$clinicalColumns <- c("Condition")
 }
-#cluster
 if(opt$fileType == "seurat" & is.null(opt$clusterColumn)){
     opt$clusterColumn <- "seurat_clusters"
 }
 
-# Default columns in scanpy objects
-# sample
+# Default columns in scanpy objects if not defined
 if(opt$fileType == "scanpy" & is.null(opt$sampleColumn)){
     opt$sampleColumn <- "ind_cov"
 }
-# clinical
 if(opt$fileType == "scanpy" & is.null(opt$clinicalColumns)){
     opt$clinicalColumns <- c("Status")
 }
-# cluster
 if(opt$fileType == "scanpy" & is.null(opt$clusterColumn)){
     opt$clusterColumn <- "louvain"
 }
 
+# Assign parameters to variables
 inputPath <- opt$inputPath
 fileType <- opt$fileType
 slotSeurat <- opt$slotSeurat
@@ -128,11 +123,14 @@ if (filterGenes) {
     }
 }
 
+# Set the python path
 if(!is.null(opt$pythonPath) & fileType == "scanpy"){
     use_python(opt$pythonPath)
 }
 
 # Data loading ------------------------------------------------------------
+
+# Save the expression data in exprMatrix and the cells metadata in metadataCells
 if (fileType == "seurat") {
     seuratobj <- readRDS(inputPath)
     exprMatrix <- GetAssayData(seuratobj, slot = slotSeurat)
@@ -149,9 +147,12 @@ if (fileType == "seurat") {
 
 # Filtering ---------------------------------------------------------------
 
+# Get the names of samples and clusters/cell types
 samples <- unique(metadataCells[,sampleColumn])
 clusters <- unique(metadataCells[,clusterColumn])
 
+# Get the metadata object for samples (metadataSamples). This is done differently
+# depending on the number of columns retrieved (one or more than one)
 if (length(clinicalColumns) > 1) {
     x <- lapply(samples, function(x) {return(metadataCells[metadataCells[,sampleColumn] == x, clinicalColumns][1,])})
     metadataSamples <- do.call("rbind", x)
@@ -166,7 +167,7 @@ if (length(clinicalColumns) > 1) {
     colnames(metadataSamples) <- c(clinicalColumns, "Sample")
 }
 
-# Calculate the number of samples with a minimum of cells in each cluster
+# Calculate the number of samples with the specified minimum of cells in each cluster
 clusterSamples <- c()
 clusterClassCells <- c()
 clusterNCells <- c()
@@ -183,6 +184,7 @@ names(clusterClassCells) <- clusters
 
 
 # Gene filtering ----------------------------------------------------------
+# Get the gene names from the expression data
 if (fileType == "seurat") {
     genesData <- rownames(exprMatrix)
 } else {
@@ -197,6 +199,7 @@ if (filterGenes) {
     annot <- getBM(c("external_gene_name","gene_biotype"), mart = mart,
                    filters = "external_gene_name", values = genesData)
     
+    # Find mitochondrial, ribosomal, hemoglobin and non-coding genes
     mitGenes <- grep("^MT-", toupper(genesData), value = T)
     ribGenes <- grep("^RPL", toupper(genesData), value = T)
     ribGenes <- c(ribGenes, grep("^RPS", toupper(genesData), value = T))
@@ -204,6 +207,7 @@ if (filterGenes) {
     nonCodingGenes <- annot[annot[,2] != "protein_coding",1]
     listExclusion <- c(mitGenes, ribGenes, hbGenes, nonCodingGenes)
     
+    # Discard the previous genes from the expression data
     if (fileType == "seurat") {
         exprMatrix <- exprMatrix[!genesData %in% listExclusion,]
     } else {
@@ -214,10 +218,15 @@ if (filterGenes) {
 
 # Save data for singleDeep ------------------------------------------------
 
-clustersOK <- names(clusterSamples)[clusterSamples == length(samples) & clusterClassCells >= minCellsClass & clusterNCells >= minCells]
+# Define the clusters that pass the stablished thresholds
+clustersOK <- names(clusterSamples)[clusterSamples == length(samples) & 
+                                      clusterClassCells >= minCellsClass & 
+                                      clusterNCells >= minCells]
 
 dir.create(outPath, showWarnings = FALSE)
 set.seed(123)
+
+# Subsample cells if necessary and save the gene expression and metadata tables
 for (cluster in clustersOK) {
     metaCluster <- metadataCells[metadataCells[,clusterColumn] == cluster,]
     cellsCluster <- rownames(metaCluster)
@@ -243,6 +252,7 @@ for (cluster in clustersOK) {
 colnames(metadataSamples) <- gsub(" ","_", colnames(metadataSamples))
 write.table(metadataSamples, paste0(outPath, "/Phenodata.tsv"), sep="\t", quote = F)
 
+# Save the file with the gene names
 if(fileType == "seurat"){
     write.table(rownames(exprMatrix), paste0(outPath, "/genes.txt"), sep="\t", quote = F)
 } else{

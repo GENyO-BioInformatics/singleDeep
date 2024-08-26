@@ -1,3 +1,4 @@
+# Import the necessary packages
 import argparse
 import anndata
 import pandas as pd
@@ -48,7 +49,7 @@ for sample in samples:
     sample_metadata = metadataCells.loc[metadataCells[args.sampleColumn] == sample, clinicalColumns].iloc[0].tolist()
     metadataSamples.loc[sample] = sample_metadata + [sample]
 
-# Calculate the number of samples with a minimum number of cells in each cluster
+# Calculate the number of samples with the specified minimum of cells in each cluster
 clusterSamples = {}
 clusterClassCells = {}
 clusterNCells = {}
@@ -67,6 +68,7 @@ for cluster in clusters:
 
 
 # Gene filtering
+# Get the gene names from the expression data
 genes = list(adata.var_names)
 
 if args.filterGenes:
@@ -74,6 +76,7 @@ if args.filterGenes:
     dataset = args.organism + "_gene_ensembl"
     mart = Dataset(name=dataset, host="http://www.ensembl.org")
     annot = mart.query(attributes=["external_gene_name", "gene_biotype"])
+    # Find mitochondrial, ribosomal, hemoglobin and non-coding genes
     mitGenes = [gene for gene in genes if re.match("^MT-", gene.upper())]
     ribGenes = [gene for gene in genes if re.match("^RPL", gene.upper())]
     ribGenes.extend([gene for gene in genes if re.match("^RPS", gene.upper())])
@@ -81,13 +84,18 @@ if args.filterGenes:
     nonCodingGenes = annot[annot["Gene type"] != "protein_coding"]
     nonCodingGenes = nonCodingGenes["Gene name"].tolist()
     listExclusion = mitGenes + ribGenes + hbGenes + nonCodingGenes
+    # Discard the previous genes from the expression data
     exprMatrix = exprMatrix[:, ~np.isin(genes, listExclusion)]
 
 
 # Save data for singleDeep
+
+# Define the clusters that pass the stablished thresholds
 clustersOK = [cluster for cluster, n_samples in clusterSamples.items() if n_samples == len(samples) and clusterClassCells[cluster] >= args.minCellsClass and clusterNCells[cluster] >= args.minCells]
 os.makedirs(args.outPath, exist_ok=True)
 random.seed(123)
+
+# Subsample cells if necessary and save the gene expression and metadata tables
 for cluster in clustersOK:
     metaCluster = metadataCells[metadataCells[args.clusterColumn] == cluster]
     cellsCluster = metaCluster.index
@@ -116,6 +124,7 @@ if args.filterGenes:
 else:
     genes = adata.var_names
 
+# Save the file with the gene names
 genes = pd.DataFrame(genes)
 genes.to_csv(os.path.join(args.outPath, "genes.txt"), sep="\t", index=True, header=True)
 

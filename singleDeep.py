@@ -5,6 +5,7 @@ import argparse
 
 parser = argparse.ArgumentParser(description='singleDeep: prediction of samples phenotypes from scRNA-Seq data')
 
+# Define the parameters and default values
 parser.add_argument('--inPath', type=str, help='Folder with the input data (output of PrepareData.R script)')
 parser.add_argument('--resultsPath', type=str, help='Folder to save the generated reports')
 parser.add_argument('--resultsFilenames', type=str, default='singleDeep_results', help='Name of the output files')
@@ -25,6 +26,7 @@ parser.add_argument('--saveModel', action='store_true', help='Save the model to 
 
 args = parser.parse_args()
 
+# Assign the paramters to variables
 inPath = args.inPath
 resultsPath = args.resultsPath
 resultsFilenames = args.resultsFilenames
@@ -70,7 +72,11 @@ import statistics
 #########################
 ### Environment setup ###
 #########################
+
+# To avoid different results due to floating-point round-off errors
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
+# Set a seed for reproducibility
 torch.manual_seed(0)
 
 # Create the output folders if necessary
@@ -91,30 +97,32 @@ if not os.path.exists(geneContributionsPath):
     os.mkdir(geneContributionsPath)
 
 # Prepare variables to store the results
-test_Results = {}
-cluster_Results = {}
-testPredictions = {}
-validationMCCs = {}
-testContributions = {}
-savedModels = {}
-resultsPath += "/"
+test_Results = {} # Performance metrics for the outer CV predictions (overall)
+cluster_Results = {} # Performance metrics for the outer CV predictions (in each cluster)
+testPredictions = {} # Predicted label for each test sample (in each cluster)
+validationMCCs = {} # MCC for the validation samples of inner CV (in each cluster)
+testContributions = {} # Estimated gene contributions for each cluster
+savedModels = {} # To store the trained models for external use
+resultsPath += "/" # To assure that the path is correct
 
-# Get the cluster names
-filesMeta = glob.glob(inPath + '/Metadata*')
-clusters = []
+# Get the cluster names from the metadata
+filesMeta = glob.glob(inPath + '/Metadata*') # Get the metadata file names
+clusters = [] # To store the cluster names
 
+# Get the cluster names from the metadata files names, discarding the path
 for file in filesMeta:
     cluster = "/".join(file.split('/')[-1:])
     cluster = "_".join(cluster.split('_')[1:])
     cluster = ".".join(cluster.split('.')[:-1])
     clusters.append(cluster)
 
+# Sort the clusters alphabetically
 clusters.sort()
 
-# Prepare metadata
+# Prepare metadata for samples
 metadataSamples = pd.read_table(inPath + '/Phenodata.tsv', index_col=0)
 
-## Assign categorical labels to numbers
+# Assign categorical labels to numbers (0, 1...)
 labels = sorted(list(set(metadataSamples[varColumn])))
 labelsDict = {}
 x = 0
@@ -123,8 +131,10 @@ for label in labels:
 	labelsDict[label] = x
 	x += 1
 
+# Create the labelInt column containing the codified phenodata column
 metadataSamples["LabelInt"] = metadataSamples[varColumn].map(labelsDict)
 
+# Get the gene names from the genes.txt file
 genes = pd.read_table(inPath + "/genes.txt", index_col=0).iloc[:,0].tolist()
 
 
@@ -132,6 +142,7 @@ genes = pd.read_table(inPath + "/genes.txt", index_col=0).iloc[:,0].tolist()
 ### Train neural networks ###
 #############################
 
+# Models are trained and tested for each cluster/cell type
 for cluster in clusters:
     print("Analyzing cluster " + cluster)
     
@@ -155,23 +166,26 @@ for cluster in clusters:
     cluster_Results[cluster] = resultsCluster[3]
     
     # Store MCC of phenotype prediction for inner CV
-    validationSamplesPredictions = {}
+    validationSamplesPredictions = {} # To store the predictions of samples
     for sample in metadataSamples["Sample"]:
-        predictionsSample = []
+        predictionsSample = [] # To store the predictions of all the individual cells from the sample
         for fold in range(1, KOuter+1):
             if sample in validationPredictions[fold].keys():
                 predictionsSample.append(validationPredictions[fold][sample])
-        if len(predictionsSample) > 0:
+        if len(predictionsSample) > 0: # Get prediction only if there are cells for that sample
             predictionsSample = list(itertools.chain.from_iterable(predictionsSample))
+            # Set the sample prediction as the most common prediction of its individual cells
             prediction = max(set(predictionsSample), key=predictionsSample.count)
             validationSamplesPredictions[sample] = prediction
 
+    # Get real phenotype labels from the metadata
     labelsReal = metadataSamples["LabelInt"].loc[list(validationSamplesPredictions.keys())]
     x = list(labelsReal)
     y = list(validationSamplesPredictions.values())
+    # Calculate the MCC comparing the real labels and the predicted ones
     validationMCCs[cluster] = matthews_corrcoef(x, y)
     
-    # Save the general model
+    # Save the trained model and the MCC of the cluster
     if saveModel:
         savedModels[cluster] = resultsCluster[4]
         savedModels[cluster]["MCC"] = validationMCCs[cluster]
@@ -188,13 +202,14 @@ for sample in metadataSamples["Sample"]:
     for cluster in clusters:
         # Only vote if a prediction has been computed for the sample in this cluster
         if sample in testPredictions[cluster].keys():
-            nVotes = max(0, round(validationMCCs[cluster] * 100))
-            votes = [testPredictions[cluster][sample]] * nVotes
+            nVotes = max(0, round(validationMCCs[cluster] * 100)) # Range between 0 to 100 votes depending on the cluster performance
+            votes = [testPredictions[cluster][sample]] * nVotes # Add the label as many times as votes
             predictionsSample.append(votes)
     predictionsSample = list(itertools.chain.from_iterable(predictionsSample))
     if len(predictionsSample) > 0:
+        # Prediction is the most voted phenotype by all te clusters
         prediction = max(set(predictionsSample), key=predictionsSample.count)
-        labelsPredicted[sample] = prediction
+        labelsPredicted[sample] = prediction # Store the final prediction for the sample
     else:
         sys.exit("ERROR: Prediction not performed due to none of the models has an MCC > 0")
     
@@ -203,6 +218,7 @@ for sample in metadataSamples["Sample"]:
 labelsReal = metadataSamples["LabelInt"].loc[list(labelsPredicted.keys())]
 x = list(labelsReal)
 y = list(labelsPredicted.values())
+# Compare real and predicted labels to calculate performance metrics
 test_Results = {'accuracy': metr.accuracy_score(x, y),
                'precision': metr.precision_score(x, y, average='macro'),
                'recall': metr.recall_score(x, y, average='macro'),
@@ -215,18 +231,18 @@ test_Results = {'accuracy': metr.accuracy_score(x, y),
 ######################
 
 # Write performance table
-results_pd = pd.DataFrame.from_dict(test_Results, orient = "index")
+results_pd = pd.DataFrame.from_dict(test_Results, orient = "index") # Transform to dataframe
 results_pd.to_csv(resultsPath + resultsFilenames + "_testResults.tsv", sep="\t")
 
 # Save gene contributions for each cluster
 for cluster in clusters:
-    contributions_pd = pd.DataFrame(testContributions[cluster])
-    contributions_pd.index = genes
+    contributions_pd = pd.DataFrame(testContributions[cluster]) # Transform to dataframe
+    contributions_pd.index = genes # Set genes as row names
     contributions_pd.to_csv(geneContributionsPath + "geneContributions_cluster_" + cluster + ".tsv", sep="\t")
 
 # Save label prediction performance for each cluster and outer CV fold
 for cluster in clusters:
-    cluster_Results_pd = pd.DataFrame.from_dict(cluster_Results[cluster], orient="index")
+    cluster_Results_pd = pd.DataFrame.from_dict(cluster_Results[cluster], orient="index") # Transform to dataframe
     cluster_Results_pd.to_csv(foldsPerformancePath + "cluster_" + cluster + ".tsv", sep="\t")
 
 # Write a table with the mean performance for each cluster across all folds
