@@ -4,7 +4,7 @@ A deep learning workflow for samples phenotype prediction with single-cell RNA-S
 
 ## Dependencies
 
-SingleDeep has been tested with R 4.2.0 and Python 3.8.3, although it is likely to work with newer and older version. To install the Python dependencies with pip, run the following code.
+SingleDeep has been tested with R 4.2.0 and Python 3.8.3, although it is likely to work with other versions. To install the Python dependencies with pip, run the following code.
 
 ```{bash}
 pip install -r requirements.txt
@@ -12,11 +12,19 @@ pip install -r requirements.txt
 
 ## Preparing the data
 
-The starting point of singleDeep is a Seurat or scanpy object with the scRNA-Seq data processed and the cell populations annotated. The file format should be RData or h5ad for Seurat and scanpy objects respectively. There are several resources to process scRNA-Seq data, for instance the excellent book Single-cell best practices (<https://www.sc-best-practices.org/>). Scaling is optional, but it is important to know whether it has been performed or not, since it has to be indicated to the singleDeep main script (parameter scale). You can run the R script **PrepareData.R** from the terminal to read this file and prepare all the necessary data to run singleDeep. It is strongly recommended to read the script help to understand the parameters and be used adequately. You can access this help with the following command.
+The starting point of singleDeep is a Seurat or scanpy object with the scRNA-Seq data processed and the cell populations annotated. The file format should be RData or h5ad for Seurat and scanpy objects respectively. There are several resources to process scRNA-Seq data, for instance the excellent book Single-cell best practices (<https://www.sc-best-practices.org/>). Scaling is optional, but it is important to know whether it has been performed or not, since it has to be indicated to the singleDeep main script (parameter *scale*). To reduce the computational cost, it is strongly recommended to perform some gene selection during the data preprocessing. For instance, it is common to select a number of highly variable genes.
+
+You can run the R script **PrepareData.R** from the terminal to read the input file and prepare all the necessary data to run singleDeep. It is strongly recommended to read the script help to understand the parameters and be used adequately. You can access this help with the following command.
 
 ```{bash}
 Rscript PrepareData.R --help
 ```
+
+Among the script parameters, there are two specially relevant:
+
+-   ***maxCells***: If a cell type has a large amount of cells (e.g., \> 100,000), there is no benefit for the neural networks training and the computational cost is significantly increased. For this reason, it is recommended to use this parameter to discard random cells until reaching the specified value (50,000 by default, but usually less cells can be used without affecting the models performance).
+
+-   ***filterGenes***: If this parameter is included, ribosomal, mitochondrial and non-coding genes will be discarded from the data. These genes are usually not measured correctly in single-cell experiments and may be problematic for data analysis and interpretation. Therefore, we recommend to include this parameter unless there is some specific interest for these genes.
 
 Here is an example of how to run the script for a scanpy object:
 
@@ -76,3 +84,7 @@ python singleDeep_pretrained.py --help
 ```
 
 Essentially, the required parameters are *inputPath*, the path to the new dataset (output of PrepareData.R); *modelFile*, the object with the trained models (models.pt from singleDeep.py); *scale* to indicate if scaling should be performed; and *outFile*, the file to save the predictions. Take into account that singleDeep transforms the phenotype categories into numbers (0, 1...) following the alphabetical order. For instance, if the caregories are "Control" and "Disease", the output will be 0 for Control and 1 for Disease respectively.
+
+## Use example
+
+.
