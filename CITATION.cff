@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Martorell-Marugán"
+  given-names: "Jordi"
+  orcid: "https://orcid.org/0000-0002-5186-0735"
+- family-names: "López-Domínguez"
+  given-names: "Raúl"
+  orcid: "https://orcid.org/0000-0001-8634-117X"
+- family-names: "Villatoro-García"
+  given-names: "Juan Antonio"
+  orcid: "https://orcid.org/0000-0001-5752-7784"
+- family-names: "Toro-Domínguez"
+  given-names: "Daniel"
+  orcid: "https://orcid.org/0000-0001-8440-312X"
+- family-names: "Chierici"
+  given-names: "Marco"
+  orcid: "https://orcid.org/0000-0001-9791-9301"
+- family-names: "Jurman"
+  given-names: "Giuseppe"
+  orcid: "https://orcid.org/0000-0002-2705-5728"
+- family-names: "Carmona-Sáez"
+  given-names: "Pedro"
+  orcid: "https://orcid.org/0000-0002-6173-7255"
+title: "singleDeep"
+version: 1.0.0
+doi: 10.6084/m9.figshare.26136463
+date-released: 2024-08-28
+url: "https://github.com/GENyO-BioInformatics/singleDeep"
