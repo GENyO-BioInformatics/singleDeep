@@ -87,4 +87,10 @@ Essentially, the required parameters are *inputPath*, the path to the new datase
 
 ## Use example
 
-.
+We created a toy dataset comprising 20 samples, each containing 5 distinct cell types under 2 different conditions. You can generate this dataset using the `simulation_toy_dataset.R` script. To run the singleDeep model on this simulated data, use the following command:
+
+```{bash}
+python singleDeep.py --inPath ./toy_dataset/data --sampleColumn Sample --logPath log_toy --resultsPath results_toy --varColumn Condition --num_epochs 50 --resultsFilenames Condition --KOuter 3 --KInner 2
+```
+
+Please note that you may encounter 'zero_division' warnings, which are expected if all samples are predicted with the same label. The process will take a few minutes to complete, after which the results will be available in the `results_toy` folder.
