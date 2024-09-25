@@ -219,7 +219,16 @@ labelsReal = metadataSamples["LabelInt"].loc[list(labelsPredicted.keys())]
 x = list(labelsReal)
 y = list(labelsPredicted.values())
 # Compare real and predicted labels to calculate performance metrics
-test_Results = {'accuracy': metr.accuracy_score(x, y),
+## Binary classification
+if len(labels) == 2:
+    test_Results = {'accuracy': metr.accuracy_score(x, y),
+               'precision': metr.precision_score(x, y),
+               'recall': metr.recall_score(x, y),
+               'f1': metr.f1_score(x, y),
+               'MCC': matthews_corrcoef(x, y)}
+## Multiclass classification
+else:
+    test_Results = {'accuracy': metr.accuracy_score(x, y),
                'precision': metr.precision_score(x, y, average='macro'),
                'recall': metr.recall_score(x, y, average='macro'),
                'f1': metr.f1_score(x, y, average='macro'),
