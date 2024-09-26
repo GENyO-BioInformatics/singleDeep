@@ -595,11 +595,19 @@ def singleDeep_core(inPath, varColumn, targetClass, contributions,
             labelsReal = metadataSamples["LabelInt"].loc[list(testPredictions.keys())]
             x = list(labelsReal)
             y = list(testPredictions.values())
-            performance = {'accuracy': metr.accuracy_score(x, y),
-                       'precision': metr.precision_score(x, y, average='macro'),
-                       'recall': metr.recall_score(x, y, average='macro'),
-                       'f1': metr.f1_score(x, y, average='macro'),
-                       'MCC': matthews_corrcoef(x, y)}
+            ## Binary classification
+            if len(labels) == 2:
+                performance = {'accuracy': metr.accuracy_score(x, y),
+                           'precision': metr.precision_score(x, y),
+                           'recall': metr.recall_score(x, y),
+                           'f1': metr.f1_score(x, y),
+                           'MCC': matthews_corrcoef(x, y)}
+            else:
+                performance = {'accuracy': metr.accuracy_score(x, y),
+                           'precision': metr.precision_score(x, y, average='macro'),
+                           'recall': metr.recall_score(x, y, average='macro'),
+                           'f1': metr.f1_score(x, y, average='macro'),
+                           'MCC': matthews_corrcoef(x, y)}
             cluster_Results[foldOut] = performance
             
             # End of outer loop
