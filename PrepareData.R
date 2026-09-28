@@ -206,7 +206,7 @@ if (filterGenes) {
         getBM(c("external_gene_name", "gene_biotype"), mart = mart,
               filters = "external_gene_name", values = genesData)
       }, error = function(e) {
-        annot_complete <- readRDS("singleDeep/biomart_backup/annot_backup_hsapiens.>
+        annot_complete <- readRDS("singleDeep/biomart_backup/annot_backup_hsapiens.rds")
         annot_complete[annot_complete$external_gene_name %in% genesData, ]
       })
     } else {
