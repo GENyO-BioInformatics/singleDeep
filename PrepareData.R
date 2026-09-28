@@ -195,9 +195,26 @@ if (filterGenes) {
     
     # Get gene annotation
     dataset <- paste0(organism, "_gene_ensembl")
-    mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset = dataset)
-    annot <- getBM(c("external_gene_name","gene_biotype"), mart = mart,
-                   filters = "external_gene_name", values = genesData)
+    if (organism == "hsapiens") {
+      mart <- tryCatch({
+        useMart("ENSEMBL_MART_ENSEMBL", dataset = dataset)
+      }, error = function(e) {
+        readRDS("singleDeep/biomart_backup/mart_backup_hsapiens.rds")
+      })
+
+      annot <- tryCatch({
+        getBM(c("external_gene_name", "gene_biotype"), mart = mart,
+              filters = "external_gene_name", values = genesData)
+      }, error = function(e) {
+        annot_complete <- readRDS("singleDeep/biomart_backup/annot_backup_hsapiens.>
+        annot_complete[annot_complete$external_gene_name %in% genesData, ]
+      })
+    } else {
+      mart <- useMart("ENSEMBL_MART_ENSEMBL", dataset = dataset)
+      annot <- getBM(c("external_gene_name","gene_biotype"), mart = mart,
+                     filters = "external_gene_name", values = genesData)
+    }
+
     
     # Find mitochondrial, ribosomal, hemoglobin and non-coding genes
     mitGenes <- grep("^MT-", toupper(genesData), value = T)
